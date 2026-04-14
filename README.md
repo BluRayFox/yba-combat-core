@@ -11,8 +11,15 @@ Put Character Controller into ServerStorage Modules or smh
 ```lua
 local CharacterController = require(game.ServerStorage.Modules.Character)
 
+-- PLAYERS
 game.Players.PlayerAdded:Connect(function(Player)
 	local Controller = CharacterController.new({Player = Player})
 	Controller:Activate()
 end)
+
+-- MOBS
+local TestMob = CharacterController.newAI({Mob = game.ServerStorage.Mobs.Rig, SpawnPoint =  CFrame.new(0, 15, 0)})
+TestMob:ActivateAI()
+
+
 ```
