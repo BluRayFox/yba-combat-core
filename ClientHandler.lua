@@ -1,45 +1,41 @@
--- Put inside of ReplicatedFirst
-local UIs = game:GetService('UserInputService')
 local Client = game.Players.LocalPlayer
+local UIs = game:GetService('UserInputService')
 
+local RemoteEvent
+local Char, Humanoid, Root
 local Connections = {}
-local RemoteEvent, RemoteFunction
-local Character, Humanoid, Root
 
-local function connect(event, cb)
+function connect(event, cb)
 	local connection = event:Connect(cb)
 	table.insert(Connections, connection)
 	return connection
 end
 
-local function disconnectAll()
-	for _, connection in Connections do
+function disconnectAll()
+	for _, connection in ipairs(Connections) do
 		connection:Disconnect()
 	end
+	
+	Connections = {} 
 end
 
-Client.CharacterAdded:Connect(function(Character)
-	RemoteEvent = Character:WaitForChild('RemoteEvent')
-	RemoteFunction = Character:WaitForChild('RemoteFunction')
+Client.CharacterAdded:Connect(function(character)
+	disconnectAll()
 	
-	Character = Client.Character
-	Humanoid = Character:WaitForChild('Humanoid')
-	Root = Character:WaitForChild('HumanoidRootPart')
+	Char = character
+	Humanoid = Char:WaitForChild("Humanoid")
+	Root = Char:WaitForChild("HumanoidRootPart")
 	
-	RemoteEvent:FireServer('PressedPlay')
-	
-	connect(Character.Destroying, function()
-		disconnectAll()
-	end)
-	
+	RemoteEvent = Char:WaitForChild('CharRemoteEvents')
 end)
 
-UIs.InputBegan:Connect(function(Input, GPE)
-	if GPE then return end
-	RemoteEvent:FireServer('InputBegan', {KeyCode = Input.KeyCode, UserInputType = Input.UserInputType})
+
+UIs.InputBegan:Connect(function(input, gpe)
+	if not gpe then return end
+	RemoteEvent:FireServer('InputBegan', {KeyCode = input.KeyCode, UserInputType = input.UserInputType})
 end)
 
-UIs.InputEnded:Connect(function(Input, GPE)
-	if GPE then return end
-	RemoteEvent:FireServer('InputEnded', {KeyCode = Input.KeyCode, UserInputType = Input.UserInputType})
+UIs.InputEnded:Connect(function(input, gpe)
+	if not gpe then return end
+	RemoteEvent:FireServer('InputEnded', {KeyCode = input.KeyCode, UserInputType = input.UserInputType})
 end)
