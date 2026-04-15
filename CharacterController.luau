@@ -1,4 +1,8 @@
+local RS = game.ReplicatedStorage
+local RSMods = RS.Assets.Modules
+
 local DefaultCombatLib = require(script.DefaultCombat) -- M1 and M2 Attacks
+local Channel = require(RSMods.Channel)
 
 local Character = {}
 local ClientWhitelist = {}
@@ -116,6 +120,8 @@ function Character:Setup()
 		LimbThreads = {}		-- Timers for limb reset 
 	}
 	
+	self.ActiveChannels = {}
+	
 	self.Char = self.Player and self.Player.Character or self.Mob:Clone()
 	self.Humanoid = self.Char.Humanoid
 	self.Root = self.Char.HumanoidRootPart
@@ -184,7 +190,12 @@ function Character:Setup()
 	
 	self.BindableFunction = BFunc
 	self.BindableEvent = BEvent
-
+	
+	for _, charPart in pairs(self.Char:GetChildren()) do
+		if charPart:IsA('BasePart') then
+			charPart.CollisionGroup = self.Player and 'Player' or 'Mob'
+		end
+	end
 end
 
 function Character:UpdateHumanoid()
