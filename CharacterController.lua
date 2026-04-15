@@ -152,35 +152,39 @@ function Character:Setup()
 		end
 	end
 	
-	-- Remotes !CLIENT! --
-	
-	local REvent = Instance.new('RemoteEvent', self.Char); REvent.Name = 'CharRemoteEvents'
-	local RFunc = Instance.new('RemoteFunction', self.Char); RFunc.Name = 'CharRemoteFunctions'
-	
-	self['_connect'](self, REvent.OnServerEvent, function(Player, f, ...)
-		if Player == self.Player and ClientWhitelist[f] then
-			if self[f] then
-				self[f](self, ...)
+	if self.Player then
+		-- Remotes !CLIENT! --
+
+		local REvent = Instance.new('RemoteEvent', self.Char); REvent.Name = 'CharRemoteEvents'
+		local RFunc = Instance.new('RemoteFunction', self.Char); RFunc.Name = 'CharRemoteFunctions'
+
+		self['_connect'](self, REvent.OnServerEvent, function(Player, f, ...)
+			if Player == self.Player and ClientWhitelist[f] then
+				if self[f] then
+					self[f](self, ...)
+				end
+			else
+				Player:Kick('gg bro gg')
 			end
-		else
-			Player:Kick('gg bro gg')
-		end
-	end)
-	
-	RFunc.OnServerInvoke = function(Player, f, ...)
-		if Player == self.Player and ClientWhitelist[f] then
-			if self[f] then
-				return self[f](self, ...)
+		end)
+
+		RFunc.OnServerInvoke = function(Player, f, ...)
+			if Player == self.Player and ClientWhitelist[f] then
+				if self[f] then
+					return self[f](self, ...)
+				end
+			else
+				Player:Kick('gg bro gg')
 			end
-		else
-			Player:Kick('gg bro gg')
 		end
+		
+		self.RemoteEvent = REvent
+		self.RemoteFunction = RFunc
 	end
 	
 	self.BindableFunction = BFunc
 	self.BindableEvent = BEvent
-	self.RemoteEvent = REvent
-	self.RemoteFunction = RFunc
+
 end
 
 function Character:UpdateHumanoid()
