@@ -1,7 +1,8 @@
 local Client = game.Players.LocalPlayer
+local ClientFX = require(script.ClientFX)
 local UIs = game:GetService('UserInputService')
 
-local RemoteEvent
+local RemoteEvent, ClientFXEvent
 local Char, Humanoid, Root
 local Connections = {}
 
@@ -38,4 +39,9 @@ end)
 UIs.InputEnded:Connect(function(input, gpe)
 	if gpe then return end
 	RemoteEvent:FireServer('InputEnded', {KeyCode = input.KeyCode, UserInputType = input.UserInputType})
+end)
+
+ClientFXEvent = game.ReplicatedStorage:WaitForChild('Remotes'):WaitForChild('ClientFX')
+ClientFXEvent.OnClientEvent:Connect(function(f, ...)
+	ClientFX[f](...)
 end)
