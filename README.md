@@ -23,3 +23,6 @@ TestMob:ActivateAI()
 
 
 ```
+# Where do i put my shiT???
+ClientHandler - Replicated First
+Character - Somewhere in ServerStorage Modules folder idk LOOOL
