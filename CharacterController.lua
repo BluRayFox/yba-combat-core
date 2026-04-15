@@ -1,273 +1,273 @@
---[[
-
-	Character Controller Module
-	Responsible for handling player character and humanoid
-
-]]
+local DefaultCombatLib = require(script.DefaultCombat) -- M1 and M2 Attacks
 
 local Character = {}
 local ClientWhitelist = {}
 
-local function addclientws(name)
-	ClientWhitelist[name] = true
-end
+function addws(s) ClientWhitelist[s] = true end
+function addwst(t) for _, s in ipairs(t) do addws(s) end end
 
-local function addclientwstbl(tbl)
-	for _, name in ipairs(tbl) do
-		addclientws(name)
-	end
-end
-
-addclientwstbl({
+addwst({
 	'InputBegan',
 	'InputEnded',
-	'Attack',
-	'PressedPlay',
 })
 
-
-function Character.new(data)
+function Character.New(data)
 	local self = setmetatable({Player = data.Player}, {__index = Character})
 	return self
 end
 
-function Character.newAI(data)
+function Character.NewAI(data)
 	local self = setmetatable({Mob = data.Mob, SpawnPoint = data.SpawnPoint, Master = data.Master}, {__index = Character})
 	return self
 end
 
-function Character:_connect(event, callback)
+-- Helpers
+function Character:_connect(event, func)
 	if not self.Connections then
 		self.Connections = {}
 	end
 	
-	local connection = event:Connect(callback)
+	local connection = event:Connect(func)
 	table.insert(self.Connections, connection)
 	
 	return connection
 end
 
-function Character:_clearConnections()
+function Character:_disconnectAll()
 	if self.Connections then
-		for _, connection in self.Connections do
+		for _, connection in ipairs(self.Connections) do
 			connection:Disconnect()
 		end
 	end
-	
 	self.Connections = {}
 end
 
-function Character:SetUp()
+function Character:_addTag(tagsTable, tagName, value, timer, onEnd)
+	self:_removeTag(tagsTable, tagName)
+
+	local tag = {
+		Value = value
+	}
+
+	if value == nil then
+		tag.Value = true
+	end
+
+	if timer then
+		tag.Thread = task.delay(timer, function()
+			if tagsTable[tagName] == tag then
+				tagsTable[tagName] = nil
+				if onEnd then onEnd() end
+			end
+		end)
+	end
+
+	tagsTable[tagName] = tag
+end
+
+function Character:_removeTag(tagsTable, tagName)
+	local tag = tagsTable[tagName]
+	if not tag then return end
+
+	if tag.Thread then
+		task.cancel(tag.Thread)
+	end
+
+	tagsTable[tagName] = nil
+end
+
+function Character:Setup()
+	self['_disconnectAll'](self)
 	
-	if self.Player and not self.Char then
-		self.Player:LoadCharacter()
+	if self.Char and not self.Player then
+		self.Char:Destroy()
 	end
 	
-	-- States
+	if self.Player then
+		self.Player:LoadCharacter()
+		
+		repeat task.wait() until self.Player.Character
+	end
+	
+	self.Connections = {}
+	
+	self.Combat = {Combo = 0, M1LastTick = os.clock(), M2LastTick = os.clock(), Track = nil, IsHoldingM1 = false, M2Counter = 0}
+	self.Block = {IsBlocking = false, Capacity = 60, Track = nil, IsHolding = false}
+	self.Sprint = {IsSprinting = false}
+	
+	-- Tags
+	self.Cooldowns = {}
+	self.WalkSpeed = {Tags = { DefaultCombat = {Value = 16, Thread = nil} }}
+	self.JumpPower = {Tags = { DefaultCombat = {Value = 50, Thread = nil} }}
+	
 	self.UsingMove = {Tags = {}, IsUsingMove = false}
-	self.WalkSpeed = {Tags = { {Name = 'DefaultSpeed', Value = 16}} }
-	self.JumpPower = {Tags = {}}
 	self.Stun = {Tags = {}, IsStunned = false}
 	self.Ragdoll = {Tags = {}, IsRagdolled = false}
-	self.Cooldowns = {}
-	self.Combat = {Combo = 0, Track = nil, M1Cooldown = false, M2Cooldown = false, M2Counter = 0, LastClock = os.clock(), M2LastClock = os.clock() - 4}
-	self.Block = {IsBlocking = false, Capacity = 58, Track = nil, OnCooldown = false, LastClock = os.clock(), BlockHeld = false}
 	
-	self.Sprint = {IsSprinting = false, OnCooldown = false}
+	self.Unconscious = false
 	self.Dead = false
 	
 	self.Limbs = {
-		LeftLeg = 'Normal',	-- Amputated
-		RightLeg = 'Normal',
-		LeftArm = 'Normal',
-		RightArm = 'Normal',
-		TimerThreads = {}
+		['Left Arm'] = 'Normal', -- Amputated
+		['Right Arm'] = 'Normal',
+		['Left Leg'] = 'Normal',
+		['Right Leg'] = 'Normal',
+		
+		LimbThreads = {}		-- Timers for limb reset 
 	}
 	
-	local RemoteEvent, RemoteFunction, BindableEvent, BindableFunction = Instance.new('RemoteEvent', self.Char), Instance.new('RemoteFunction', self.Char), Instance.new('BindableEvent', self.Char), Instance.new('BindableFunction', self.Char)
-	BindableEvent.Name = 'BindableEvent'
-	BindableFunction.Name = 'BindableFunction'
-	RemoteEvent.Name = 'RemoteEvent'
-	RemoteFunction.Name = 'RemoteFunction'
+	self.Char = self.Player and self.Player.Character or self.Mob:Clone()
+	self.Humanoid = self.Char.Humanoid
+	self.Root = self.Char.HumanoidRootPart
 	
-	self.RemoteEvent = RemoteEvent
-	self.RemoteFunction = RemoteFunction
-	self.BindableEvent = BindableEvent
-	self.BindableFunction = BindableFunction
-	
-	self:_clearConnections()
-	
-	-- remote event 
-	self:_connect(RemoteEvent.OnServerEvent, function(player, f, ...)
-		if self[f] and ClientWhitelist[f] and player == self.Player then
-			self[f](self, ...)
-		else
-			self.Player:Kick('gg bro gg')
-		end
-	end)
-	
-	-- bindable event
-	self:_connect(BindableEvent.Event, function(f, ...)
-		if self[f] then
-			self[f](self, ...)
-		end
-	end)
-	
-	BindableFunction.OnInvoke = function(f, ...)
-		if self[f] then
-			return self[f](self, ...)
-		end
+	if self.Mob then
+		self.Root.CFrame = self.SpawnPoint or CFrame.new(0, 0, 0)
 	end
 	
-	RemoteFunction.OnServerInvoke = function(player, f, ...)
-		if self[f] and ClientWhitelist[f] and player == self.Player then
-			return self[f](self, ...)
-		else
-			self.Player:Kick('gg bro gg')
-		end
-	end
-	
-	self:_connect(self.Humanoid.Died, function()
-		self.Dead = true
+	self['_connect'](self, self.Humanoid.Died, function()
 		task.wait(3)
 		
-		if self.Char:FindFirstChild('AI') and self.Char['AI'].Value == true then
-			self:ActivateAI()
+		if self.Player then
+			self['Activate'](self)
 		else
-			self:Activate()
+			task.wait(math.random(2, 7))
+			self['ActivateAI'](self)
 		end
-		
 	end)
 	
-	if self.Player then
-		self:_connect(self.Player.CharacterRemoving, function()
-			self:_clearConnections()
-		end)
-	end
+	-- Bindables --
 	
-	if self.Player then
-		if not self.Player:GetAttribute('PressedPlay') then
-			for k, v in pairs(self.Char:GetChildren()) do
-				if v:IsA('BasePart') then
-					v.Anchored = true
-				end
-			end
+	local BEvent = Instance.new('BindableEvent', self.Char); BEvent.Name = 'CharEvents'
+	local BFunc = Instance.new('BindableFunction', self.Char); BFunc.Name = 'CharFunctions'
+	
+	self['_connect'](self, BEvent.Event, function(f, ...)
+		if self[f] then
+			self[f](self, ...)
+		end
+	end)
+	
+	BFunc.OnInvoke = function(f, ...)
+		if self[f] then
+			return self[f](self, ...)
 		end
 	end
 	
-	self:UpdateHumanoid()
+	-- Remotes !CLIENT! --
+	
+	local REvent = Instance.new('RemoteEvent', self.Char); REvent.Name = 'CharRemoteEvents'
+	local RFunc = Instance.new('RemoteFunction', self.Char); RFunc.Name = 'CharRemoteFunctions'
+	
+	self['_connect'](self, REvent.OnServerEvent, function(Player, f, ...)
+		if Player == self.Player and ClientWhitelist[f] then
+			if self[f] then
+				self[f](self, ...)
+			end
+		else
+			Player:Kick('gg bro gg')
+		end
+	end)
+	
+	RFunc.OnServerInvoke = function(Player, f, ...)
+		if Player == self.Player and ClientWhitelist[f] then
+			if self[f] then
+				return self[f](self, ...)
+			end
+		else
+			Player:Kick('gg bro gg')
+		end
+	end
+	
+	self.BindableFunction = BFunc
+	self.BindableEvent = BEvent
+	self.RemoteEvent = REvent
+	self.RemoteFunction = RFunc
 end
 
 function Character:UpdateHumanoid()
-	local WS = 0
-	local JP = 50
+	local WS, JP = 0, 0
 	
-	local BlockingSpeed = 8
-	local StunnedSpeed = 1
+	local StunWS = 1
+	local BlockingWS = 8
 	
-	for i, tag in pairs(self.WalkSpeed.Tags) do
+	for k, tag in pairs(self.WalkSpeed.Tags) do
 		WS += tag.Value
 	end
 	
-	for i, tag in pairs(self.JumpPower.Tags) do
+	for k, tag in pairs(self.JumpPower.Tags) do
 		JP += tag.Value
 	end
 	
+	self.UsingMove.IsUsingMove = false
+	for k, tag in pairs(self.UsingMove.Tags) do
+		if tag.Value == true then
+			self.UsingMove.IsUsingMove = true
+			break
+		end
+	end
+	
+	self.Stun.IsStunned = false
+	for k, tag in pairs(self.Stun.Tags) do
+		if tag.Value == true then
+			self.Stun.IsStunned = true
+			break
+		end
+	end
+	
 	if self.Stun.IsStunned then
-		WS = StunnedSpeed
+		WS = StunWS
+		JP = 0
 	elseif self.Block.IsBlocking then
-		WS = BlockingSpeed
+		WS = BlockingWS
+		JP = 0
 	end
 	
 	self.Humanoid.WalkSpeed = WS
 	self.Humanoid.JumpPower = JP
 end
 
-function Character:UpdateUsingMove()
-	local isUsing = false
-
-	for _, tag in pairs(self.UsingMove.Tags) do
-		if tag.Value == true then
-			isUsing = true
-			break
+function Character:InputBegan(Data)
+	if Data.UserInputType == Enum.UserInputType.MouseButton1 then
+		self.Combat.IsHoldingM1 = true
+		self['Attack'](self, 'm1')
+		
+		task.spawn(function()
+			while self.Combat.IsHoldingM1 do
+				self['Attack'](self, 'm1')
+				task.wait()
+			end
+		end)
+	elseif Data.UserInputType == Enum.UserInputType.MouseButton2 then
+		if self.Combat.M2Counter > 1 then return end
+		
+		self.Combat.M2Counter += 1
+		if self.Combat.M2Counter >= 2 then
+			self['Attack'](self, 'm2')
+			
+			self.Combat.M2Counter = 0
 		end
-	end
-
-	self.UsingMove.IsUsingMove = isUsing
-end
-
-function Character:Activate()	
-	self.Player:LoadCharacter()
-	
-	self.Char = self.Player.Character
-	self.Humanoid = self.Char.Humanoid
-	self.Root = self.Char.HumanoidRootPart
-	
-	self.Char.Parent = workspace.Living
-	self:SetUp()
-end
-
-function Character:ActivateAI()
-	
-	self.Char = self.Mob:Clone()
-	self.Humanoid = self.Char.Humanoid
-	self.Root = self.Char.HumanoidRootPart
-	
-	self.Char.Parent = workspace.Living
-	
-	local MasterVal = Instance.new('ObjectValue', self.Char)
-	MasterVal.Value = self.Master
-	MasterVal.Name = 'Master'
-	
-	local AiBool = Instance.new('BoolValue', self.Char)
-	AiBool.Value = true
-	AiBool.Name = 'AI'
-	
-	self.Root.CFrame = self.SpawnPoint
-	self:SetUp()
-end
-
-function Character:PressedPlay()
-	self.Player:SetAttribute('PressedPlay', true)
-	
-	for k, v in pairs(self.Char:GetChildren()) do
-		if v:IsA('BasePart') then
-			v.Anchored = false
-		end
-	end
-end
-
-function Character:InputBegan(data)
-	
-	if data.KeyCode == Enum.KeyCode.LeftControl then
+		
+		task.delay(0.25, function()
+			self.Combat.M2Counter -= 1
+			
+			if self.Combat.M2Counter < 0 then
+				self.Combat.M2Counter = 0
+			end
+		end)
+		
+		
+	elseif Data.KeyCode == Enum.KeyCode.LeftControl then
 		if self.Sprint.IsSprinting then
 			self['DisableSprint'](self)
 		else
 			self['EnableSprint'](self)
 		end
 		
-	elseif data.UserInputType == Enum.UserInputType.MouseButton1 then
-		if self.Combat.M1Held then return end 
-		self.Combat.M1Held = true
-		self['Attack'](self, 'm1')
-		
-		task.spawn(function()
-			while self.Combat.M1Held do
-				self['Attack'](self, 'm1')
-				task.wait()
-			end
-			
-		end)
-		
-	elseif data.UserInputType == Enum.UserInputType.MouseButton2 then
-		self['Attack'](self, 'm2')
-		
-	elseif data.KeyCode == Enum.KeyCode.F then
+	elseif Data.KeyCode == Enum.KeyCode.F then
+		self.Block.IsHolding = true
 		self['StartBlocking'](self)
-		self.Block.BlockHeld = true
 		
 		task.spawn(function()
-			while self.Block.BlockHeld do
+			while self.Block.IsHolding do
 				self['StartBlocking'](self)
 				task.wait()
 			end
@@ -279,316 +279,189 @@ function Character:InputBegan(data)
 	
 end
 
-function Character:InputEnded(data)
-	if data.UserInputType == Enum.UserInputType.MouseButton1 then
-		self.Combat.M1Held = false
+function Character:InputEnded(Data)
+	if Data.UserInputType == Enum.UserInputType.MouseButton1 then
+		self.Combat.IsHoldingM1 = false
 		
-	elseif data.KeyCode == 	Enum.KeyCode.F then
-		self.Block.BlockHeld = false
-		self['StopBlocking'](self)
-	end
-end
-
--- TODO!!
-function Character:Attack(attackType, data)
-	
-	if attackType == 'm1' then						
-		if self.Combat.M1Cooldown then return end
-		if not self:ReturnCanAttack() then return end
-		
-		local Combo = self.Combat.Combo or 0
-		local MaxCombo = 5
-		
-		if os.clock() - self.Combat.LastClock >= 1.25 then
-			Combo = 0
-			print('Reset!')
-		elseif os.clock() - self.Combat.LastClock >= 0.75 and Combo < 4 then
-			Combo = 0
-			print('Early Reset!')
-		end
-		
-		if Combo == 5 then return end
-		Combo += 1
-		
-		if self.Combat.Track then
-			self.Combat.Track:Stop()
-		end
-		
-		local Anim = game.ReplicatedStorage.Assets.Anims.DefaultCombat['Combo'..Combo]
-		self.Combat.Track = self['LoadAnimation'](self, Anim)
-		self.Combat.Track:Play()
-		
-		
-		self.Combat.Combo = Combo
-		self['AddUsingMove'](self, {Name = 'DefaultCombat', Value = true, Timer = (Combo == 5 and 1.25 or 0.35)})
-		self['AddWalkSpeed'](self, {Name = 'DefaultCombat', Value = -6, Timer = (Combo == 5 and 1.25 or 0.35)})
-		
-		print('Combat M1! ' .. Combo)
-		self['DisableSprint'](self)
-		
-		self.Combat.LastClock = os.clock()
-
-	elseif attackType == 'm2' then
-		self.Combat.M2Counter += 1
-		
-		task.delay(0.25, function()
-			self.Combat.M2Counter -= 1
-			if self.Combat.M2Counter < 0 then
-				self.Combat.M2Counter = 0
-			end
-		end)
-		
-		if self.Combat.M2Counter < 2 then return end
-		if self.Combat.M2Cooldown then return end
-		if not self:ReturnCanAttack() then return end
-		if os.clock() - self.Combat.M2LastClock < 4 then return end
-		
-		if self.Combat.Track then
-			self.Combat.Track:Stop()
-		end
-
-		local Anim = game.ReplicatedStorage.Assets.Anims.DefaultCombat.Heavy
-		self.Combat.Track = self['LoadAnimation'](self, Anim)
-		self.Combat.Track:Play()
-		
-		self['AddUsingMove'](self, {Name = 'DefaultCombat', Value = true, Timer = 0.55})
-		self['AddWalkSpeed'](self, {Name = 'DefaultCombat', Value = -10, Timer = 0.55})
-		
-		self.Combat.M2LastClock = os.clock()
+	elseif Data.KeyCode == Enum.KeyCode.F then
+		self.Block.IsHolding = false
 		
 	end
 	
 end
 
-function Character:EnableSprint()
-	if not self['ReturnCanAttack'](self) then return end
-	if self.Sprint.OnCooldown then return end
+function Character:Attack(Type, extra)
+	Type = Type:upper()
 	
-	self.Sprint.IsSprinting = true
-	self.Sprint.OnCooldown = true
-	
-	if self.Sprint.Thread then
-		task.cancel(self.Sprint.Thread)
+	if DefaultCombatLib[Type] then
+		DefaultCombatLib[Type](self, extra)
 	end
-	
-	local t = task.delay(0.3, function()
-		self.Sprint.OnCooldown = false
-	end)
-	
-	self.Sprint.Thread = t
-	
-	self['AddWalkSpeed'](self, {Name = 'Run', Value = 8})
-end
-
-function Character:DisableSprint()
-	-- if not self['ReturnCanAttack'](self) then return end
-	self.Sprint.IsSprinting = false
-	self.Sprint.OnCooldown = true
-	
-	if self.Sprint.Thread then
-		task.cancel(self.Sprint.Thread)
-	end
-	
-	local t = task.delay(0.3, function()
-		self.Sprint.OnCooldown = false
-	end)
-	
-	self.Sprint.Thread = t
-	
-	self['RemoveWalkSpeed'](self, {Name = 'Run'})
 end
 
 function Character:StartBlocking()
-	local CanAttack = self['ReturnCanAttack'](self)
-	if not CanAttack then return end
+	local CantAttack = not self['ReturnCanAttack'](self)
+	local UsingMove = self.UsingMove.IsUsingMove
+	local OnCD = self['ReturnHasCD'](self, 'Block')
+	
+	if CantAttack or UsingMove or OnCD then return end
 	if self.Block.IsBlocking then return end
-	if os.clock() - self.Block.LastClock < 0.18 then return end
-	
-	self.Block.IsBlocking = true
-	self.Block.Capacity = 58
-	
-	if self.Block.Track then
-		self.Block.Track:Stop()
-	end
 	
 	if self.Combat.Track then
 		self.Combat.Track:Stop()
 	end
 	
+	if self.Block.Track then
+		self.Block.Track:Stop()
+	end
+	
 	local Anim = game.ReplicatedStorage.Assets.Anims.DefaultCombat.Block
-	self.Block.Track = self['LoadAnimation'](self, Anim)
-	self.Block.Track:Play()
+	local Track = self['LoadAnimation'](self, Anim)
+	Track.Looped = true
+	Track:Play()
 	
-	self.Block.LastClock = os.clock()
+	self.Block.Track = Track
 	
-	self['DisableSprint'](self)
+	self.Block.IsBlocking = true
+	self.Block.Capacity = 60
+	
+	self['AddCD'](self, {Name = 'Block', Timer = 0.18})
+	
+	local PerfectBlockTag = Instance.new('BoolValue', self.Char)
+	PerfectBlockTag.Name = 'PerfectBlock'
+	PerfectBlockTag.Value = true
+	
+	game.Debris:AddItem(PerfectBlockTag, 0.18)
+	
 	self['UpdateHumanoid'](self)
 end
 
 function Character:StopBlocking()
-	self.Block.IsBlocking = false
+	if not self.Block.IsBlocking then return end
 	
 	if self.Block.Track then
 		self.Block.Track:Stop()
 	end
 	
+	self.Block.Track = nil
+	self.Block.IsBlocking = false
+	
 	self['UpdateHumanoid'](self)
 end
 
-function Character:DamageBlock(Dmg)
-	if not Dmg then Dmg = 0 end
-	if not self.Block.IsBlocking then return end
-	
-	self.Block.Capacity -= Dmg
-	
-	if self.Block.Capacity <= 0 then
-		self['BlockBreak'](self)
-	end
+function Character:AddWalkSpeed(Data)
+	self:_addTag(self.WalkSpeed.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:BlockBreak()
-	self['StopBlocking'](self)
-	self.Block.Capacity = 0 
-	
-	-- Effects
-	
-	-- AddStun
-	
+function Character:RemoveWalkSpeed(Data)
+	self:_removeTag(self.WalkSpeed.Tags, Data.Name)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:PerfectBlock(data) -- Victim, Attacker
-	if data.Victim ~= self.Char then return end
-	
-	-- Effects
-	
-	-- AddStun
-	
+function Character:AddJumpPower(Data)
+	self:_addTag(self.JumpPower.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end)
+	self['UpdateHumanoid'](self)
 end
 
-
--- States
-function Character:AddWalkSpeed(data)
-	local Tag = {Name = data.Name or 'WalkSpeed_'..os.clock(), Value = data.Value or 0}
-	table.insert(self.WalkSpeed.Tags, Tag)
-	self:UpdateHumanoid()
-	
-	if data.Timer then
-		task.delay(data.Timer, function()
-			for i, tag in pairs(self.WalkSpeed.Tags) do
-				if tag.Name == Tag.Name and tag.Value == Tag.Value then
-					table.remove(self.WalkSpeed.Tags, i)
-					self:UpdateHumanoid()
-					break
-				end
-			end
-		end)
-	end
+function Character:RemoveJumpPower(Data)
+	self:_removeTag(self.JumpPower.Tags, Data.Name)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:RemoveWalkSpeed(data)
-	for i, tag in pairs(self.WalkSpeed.Tags) do
-		if tag.Name == data.Name then
-			table.remove(self.WalkSpeed.Tags, i)
-			self:UpdateHumanoid()
-			break
-		end
-	end
-	
+function Character:AddUsingMove(Data)
+	self:_addTag(self.UsingMove.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:AddJumpPower(data)
-	local Tag = {Name = data.Name or 'JumpPower_'..os.clock(), Value = data.Value or 0}
-	table.insert(self.JumpPower.Tags, Tag)
-	self:UpdateHumanoid()
-	
-	if data.Timer then
-		task.delay(data.Timer, function()
-			for i, tag in pairs(self.JumpPower.Tags) do
-				if tag.Name == Tag.Name and tag.Value == Tag.Value then
-					table.remove(self.JumpPower.Tags, i)
-					self:UpdateHumanoid()
-					break
-				end
-			end
-		end)
-	end
+function Character:RemoveUsingMove(Data)
+	self:_removeTag(self.UsingMove.Tags, Data.Name)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:RemoveJumpPower(data)
-	for i, tag in pairs(self.JumpPower.Tags) do
-		if tag.Name == data.Name then
-			table.remove(self.JumpPower.Tags, i)
-			self:UpdateHumanoid()
-			break
-		end
-	end
+function Character:AddStun(Data)
+	self:_addTag(self.Stun.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:AddUsingMove(data)
-	local Tag = {Name = data.Name or 'UsingMove_'..os.clock(), Value = data.Value or false}
-	table.insert(self.UsingMove.Tags, Tag)
-	self:UpdateUsingMove()
-	
-	if data.Timer then
-		task.delay(data.Timer, function()
-			for i, tag in pairs(self.UsingMove.Tags) do
-				if tag.Name == Tag.Name and tag.Value == Tag.Value then
-					table.remove(self.UsingMove.Tags, i)
-					self:UpdateUsingMove()
-					break
-				end
-			end
-		end)
-	end
+function Character:RemoveStun(Data)
+	self:_removeTag(self.Stun.Tags, Data.Name)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:RemoveUsingMove(data)
-	for i, tag in pairs(self.UsingMove.Tags) do
-		if tag.Name == data.Name then
-			table.remove(self.UsingMove.Tags, i)
-			self:UpdateUsingMove()
-			break
-		end
-	end
-	
+function Character:AddRagdoll(Data)
+	self:_addTag(self.Ragdoll.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:AddCD(data)
-	self.Cooldowns[data.Name] = {Enabled = true, Thread = nil}
-	
-	local thread = task.delay(data.Timer, function()
-		self.Cooldowns[data.Name] = nil
-	end)
-	
-	self.Cooldowns[data.Name].Thread = thread
+function Character:RemoveRagdoll(Data)
+	self:_removeTag(self.Ragdoll.Tags, Data.Name)
+	self['UpdateHumanoid'](self)
 end
 
-function Character:RemoveCD(data)
-	if self.Cooldowns[data.Name] then
-		if self.Cooldowns[data.Name].Thread then
-			task.cancel(self.Cooldowns[data.Name].Thread)
-		end
-		self.Cooldowns[data.Name] = nil
-	end
+function Character:AddCD(Data)
+	self:_addTag(self.Cooldowns, Data.Name, true, Data.Timer)
 end
 
-function Character:ReturnHasCD(name)
-	return self.Cooldowns[name] ~= nil and self.Cooldowns[name].Enabled == true
+function Character:RemoveCD(Data)
+	self:_removeTag(self.Cooldowns, Data.Name)
+end
+
+function Character:ReturnHasCD(Name)
+	return self.Cooldowns[Name] ~= nil
 end
 
 function Character:ReturnCanAttack()
-	return self.Ragdoll.IsRagdolled == false and
-		self.UsingMove.IsUsingMove == false and
-		self.Block.IsBlocking == false and
-		self.Stun.IsStunned == false
-	
+	return self.Stun.IsStunned == false and
+		self.Ragdoll.IsRagdolled == false and
+		self.Block.IsBlocking == false
 end
 
-function Character:LoadAnimation(anim, humOrAnim)
-	local Animator = humOrAnim or self.Humanoid:FindFirstChild('Animator') or self.Humanoid
-	local Track = Animator:LoadAnimation(anim)
+function Character:EnableSprint()
+	local UsingMove = self.UsingMove.IsUsingMove
+	local CantAttack = not self['ReturnCanAttack'](self)
+	local OnCD = self['ReturnHasCD'](self, 'Sprint')
+
+	if UsingMove or CantAttack or OnCD then return end	
+	if self.Sprint.IsSprinting then return end
 	
-	return Track
+	self.Sprint.IsSprinting = true
+	self['AddWalkSpeed'](self, {Name = 'Sprint', Value = 10})
+	
+	self['AddCD'](self, {Name = 'Sprint', Timer = 0.3})
+end
+
+function Character:DisableSprint(forced)
+--[[
+	local UsingMove = self.UsingMove.IsUsingMove
+	local CantAttack = not self['ReturnCanAttack']()
+	local OnCD = self['ReturnHasCD'](self, 'Sprint')
+
+	if (UsingMove or CantAttack or OnCD or not self.Sprint.IsSprinting) and not forced then return end
+]]
+	
+	self.Sprint.IsSprinting = false
+	self['RemoveWalkSpeed'](self, {Name = 'Sprint'})
+	self['AddCD'](self, {Name = 'Sprint', Timer = 0.3})
+end
+
+function Character:LoadAnimation(anim, animOrHum)
+	local animator = animOrHum or self.Humanoid:FindFirstChildOfClass('Animator') or self.Humanoid
+	local track = animator:LoadAnimation(anim)
+	return track
+end
+
+function Character:Activate()
+	self['Setup'](self)
+	self.Char.Parent = workspace.Alive
+	
+	self['UpdateHumanoid'](self)
+end
+
+function Character:ActivateAI()
+	self['Setup'](self)
+	self.Char.Parent = workspace.Alive
+	
+	self['UpdateHumanoid'](self)
 end
 
 return Character
