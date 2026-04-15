@@ -1,3 +1,12 @@
+local RS = game.ReplicatedStorage
+local SS = game.ServerStorage
+
+local RSMods = RS.Assets.Modules
+local SSMods = SS.Assets.Modules
+
+local Channel = require(RSMods.Channel)
+local HitboxMod = require(SSMods.HitboxMod)
+
 local DefaultCombat = {}
 
 DefaultCombat['M1'] = function(self, extra)
@@ -31,6 +40,25 @@ DefaultCombat['M1'] = function(self, extra)
 	local Anim = game.ReplicatedStorage.Assets.Anims.DefaultCombat['Combo'..Combo]
 	self.Combat.Track = self['LoadAnimation'](self, Anim)
 	self.Combat.Track:Play()
+	
+	local Hb = HitboxMod.new()
+	Hb.Size = Vector3.new(5, 6, 4.5)
+	Hb.Origin = self.Root
+	Hb.Visualiser = true
+	Hb.VisualiseTo = self.Player
+	Hb.Offset = CFrame.new(0, 0, -1)
+	
+	local DamageChannel = Channel.new()
+	DamageChannel.DurationTimer = 0.25
+	
+	DamageChannel.Duration = function()
+		local Chars = Hb:Cast({self.Char})
+		print(Chars)
+	end
+	
+	task.delay(0.25, function()
+		DamageChannel:Start()
+	end)
 	
 	self.Combat.M1LastTick = now
 	self.Combat.Combo = Combo
