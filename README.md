@@ -27,4 +27,6 @@ TestMob:ActivateAI()
 ```
 ClientHandler - Replicated First
 Character - Somewhere in ServerStorage Modules folder idk LOOOL
+
+Other - Look inside of code and check require path or smth.,.,..,
 ```
