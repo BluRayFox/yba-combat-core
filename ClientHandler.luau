@@ -31,11 +31,11 @@ end)
 
 
 UIs.InputBegan:Connect(function(input, gpe)
-	if not gpe then return end
+	if gpe then return end
 	RemoteEvent:FireServer('InputBegan', {KeyCode = input.KeyCode, UserInputType = input.UserInputType})
 end)
 
 UIs.InputEnded:Connect(function(input, gpe)
-	if not gpe then return end
+	if gpe then return end
 	RemoteEvent:FireServer('InputEnded', {KeyCode = input.KeyCode, UserInputType = input.UserInputType})
 end)
