@@ -16,6 +16,245 @@ addwst({
 	'InputEnded',
 })
 
+local RagdollJoints = {
+	Neck = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+
+			UpperAngle = 25;
+			TwistLowerAngle = -45;
+			TwistUpperAngle = 45;
+
+			Restitution = 0;
+		};
+	};
+
+	RootJoint = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+
+			UpperAngle = 10;
+			TwistLowerAngle = -10;
+			TwistUpperAngle = 10;
+
+			Restitution = 0;
+		};
+	};
+
+	LeftShoulder = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+
+			UpperAngle = 85;
+			TwistLowerAngle = -60;
+			TwistUpperAngle = 60;
+
+			Restitution = 0;
+		};
+	};
+
+	RightShoulder = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+
+			UpperAngle = 85;
+			TwistLowerAngle = -60;
+			TwistUpperAngle = 60;
+
+			Restitution = 0;
+		};
+	};
+
+	LeftHip = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+
+			UpperAngle = 60;
+			TwistLowerAngle = -40;
+			TwistUpperAngle = 40;
+
+			Restitution = 0;
+		};
+	};
+
+	RightHip = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+
+			UpperAngle = 60;
+			TwistLowerAngle = -40;
+			TwistUpperAngle = 40;
+
+			Restitution = 0;
+		};
+	};
+}
+
+local RagdollJointR15 = {
+	LeftAnkle = {
+		"Hinge";
+		Properties = {
+			LimitsEnabled = true;
+			UpperAngle = 0; --5
+			LowerAngle = -45; --5
+			Restitution = 0;
+		};
+	};
+	RightAnkle = {
+		"Hinge";
+		Properties = {
+			LimitsEnabled = true;
+			UpperAngle = 0; --5
+			LowerAngle = -45; --5
+			Restitution = 0;
+		};
+	};
+	LeftKnee = {
+		"Hinge";
+		Properties = {
+			LimitsEnabled = true;
+			UpperAngle = -10;
+			LowerAngle = -135;
+			Restitution = 0;
+		};
+	};
+	RightKnee = {
+		"Hinge";
+		Properties = {
+			LimitsEnabled = true;
+			UpperAngle = -10;
+			LowerAngle = -135;
+			Restitution = 0;
+		};
+	};
+	LeftHip = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+			UpperAngle = 40;
+			TwistLowerAngle = -3;
+			TwistUpperAngle = 3;
+			Restitution = 0;
+		};
+	};
+	RightHip = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+			UpperAngle = 40; --30
+			TwistLowerAngle = -3;
+			TwistUpperAngle = 3;
+			Restitution = 0;
+		};
+	};
+	Waist = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+			UpperAngle = 15;
+			TwistLowerAngle = -1;
+			TwistUpperAngle = 1;
+			Restitution = 0;
+		};
+	};
+	LeftShoulder = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+			UpperAngle = 30;
+			TwistLowerAngle = -30;
+			TwistUpperAngle = 30;
+			Restitution = 0;
+		};
+	};
+	RightShoulder = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+			UpperAngle = 30;
+			TwistLowerAngle = -30;
+			TwistUpperAngle = 30;
+			Restitution = 0;
+		};
+	};
+	LeftElbow = {
+		"Hinge";
+		Properties = {
+			LimitsEnabled = true;
+			UpperAngle = 135;
+			LowerAngle = 0;
+			Restitution = 0;
+		};
+	};
+	RightElbow = {
+		"Hinge";
+		Properties = {
+			LimitsEnabled = true;
+			UpperAngle = 135;
+			LowerAngle = 0;
+			Restitution = 0;
+		};
+	};
+	LeftWrist = {
+		"Hinge";
+		Properties = {
+			LimitsEnabled = true;
+			UpperAngle = 20; --5
+			LowerAngle = -20; --5
+			Restitution = 0;
+		};
+	};
+	RightWrist = {
+		"Hinge";
+		Properties = {
+			LimitsEnabled = true;
+			UpperAngle = 20; --5
+			LowerAngle = -20; --5
+			Restitution = 0;
+		};
+	};
+	Neck = {
+		"BallSocket";
+		Properties = {
+			LimitsEnabled = true;
+			TwistLimitsEnabled = true;
+			MaxFrictionTorque = 0;
+			UpperAngle = 0;
+			TwistLowerAngle = -45;
+			TwistUpperAngle = 45;
+			Restitution = 0;
+		};
+	};
+}
+
 function Character.New(data)
 	local self = setmetatable({Player = data.Player}, {__index = Character})
 	return self
@@ -95,6 +334,12 @@ function Character:Setup()
 		self.Char:Destroy()
 	end
 	
+	if self.Player and self.Player.Character then
+		self.Player.Character:Destroy()
+	end
+
+	
+	
 	if self.Player then
 		self.Player:LoadCharacter()
 		
@@ -114,7 +359,7 @@ function Character:Setup()
 	
 	self.UsingMove = {Tags = {}, IsUsingMove = false}
 	self.Stun = {Tags = {}, IsStunned = false}
-	self.Ragdoll = {Tags = {}, IsRagdolled = false}
+	self.Knock = {Tags = {}, IsKnocked = false}
 	
 	self.Unconscious = false
 	self.Dead = false
@@ -136,7 +381,13 @@ function Character:Setup()
 		self.Root.CFrame = self.SpawnPoint or CFrame.new(0, 0, 0)
 	end
 	
+	self.Humanoid.BreakJointsOnDeath = false
+	
 	self['_connect'](self, self.Humanoid.Died, function()
+		if self.Dead then return end	-- "Skibidi Sigma" Fix
+		
+		self['Ragdoll'](self)
+		self.Dead = true
 		task.wait(3)
 		
 		if self.Player then
@@ -459,16 +710,6 @@ function Character:RemoveStun(Data)
 	self['UpdateHumanoid'](self)
 end
 
-function Character:AddRagdoll(Data)
-	self:_addTag(self.Ragdoll.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end)
-	self['UpdateHumanoid'](self)
-end
-
-function Character:RemoveRagdoll(Data)
-	self:_removeTag(self.Ragdoll.Tags, Data.Name)
-	self['UpdateHumanoid'](self)
-end
-
 function Character:AddCD(Data)
 	self:_addTag(self.Cooldowns, Data.Name, true, Data.Timer)
 end
@@ -477,13 +718,123 @@ function Character:RemoveCD(Data)
 	self:_removeTag(self.Cooldowns, Data.Name)
 end
 
+function Character:Ragdoll()
+	if self.Unconscious then return end
+	self.Unconscious = true
+
+	self.Humanoid.RequiresNeck = false
+	self.Humanoid.AutoRotate = false
+	self.Humanoid.PlatformStand = true
+	self.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+
+	for _, v in pairs(self.Char:GetDescendants()) do
+		if v:IsA("Motor6D") then
+			local jointName = v.Name:gsub(" ", "")
+			local jointData = RagdollJoints[jointName]
+
+			local a0 = Instance.new("Attachment")
+			local a1 = Instance.new("Attachment")
+
+			a0.Name = "RagdollAttachment"
+			a1.Name = "RagdollAttachment"
+
+			a0.CFrame = v.C0
+			a1.CFrame = v.C1
+
+			a0.Parent = v.Part0
+			a1.Parent = v.Part1
+
+			local constraint
+
+			if jointData then
+				if jointData[1] == "BallSocket" then
+					constraint = Instance.new("BallSocketConstraint")
+				elseif jointData[1] == "Hinge" then
+					constraint = Instance.new("HingeConstraint")
+				end
+
+				if constraint then
+					constraint.Attachment0 = a0
+					constraint.Attachment1 = a1
+
+					-- Apply all properties dynamically
+					for prop, val in pairs(jointData.Properties) do
+						if constraint[prop] ~= nil then
+							constraint[prop] = val
+						end
+					end
+
+					constraint.Parent = v.Parent
+				end
+			else
+				-- fallback (safe default)
+				local socket = Instance.new("BallSocketConstraint")
+				socket.Attachment0 = a0
+				socket.Attachment1 = a1
+				socket.LimitsEnabled = true
+				socket.UpperAngle = 45
+				socket.TwistLimitsEnabled = true
+				socket.TwistLowerAngle = -45
+				socket.TwistUpperAngle = 45
+				socket.Parent = v.Parent
+			end
+
+			v.Enabled = false
+
+		elseif v:IsA("BasePart") then
+			v.CollisionGroup = "Ragdoll"
+
+			if v.Name == "HumanoidRootPart" then
+				v.CanCollide = false
+			elseif v.Parent == self.Char then
+				v.CanCollide = true
+			end
+			
+		end
+	end
+	
+	self['UpdateHumanoid'](self)
+end
+
+function Character:Unragdoll()
+	if not self.Unconscious then return end
+	self.Unconscious = false
+
+	for _, v in pairs(self.Char:GetDescendants()) do
+		if v:IsA("Motor6D") then
+			v.Enabled = true
+
+		elseif v:IsA("BallSocketConstraint") or v:IsA("HingeConstraint") then
+			v:Destroy()
+
+		elseif v:IsA("Attachment") and v.Name == "RagdollAttachment" then
+			v:Destroy()
+
+		elseif v:IsA("BasePart") then
+			v.CollisionGroup = self.Player and "Player" or "Mob"
+
+			if v.Name == "HumanoidRootPart" or v.Name == 'Head' or v.Name == 'Torso' then
+				v.CanCollide = true
+			else
+				v.CanCollide = false
+			end
+		end
+	end
+
+	self.Humanoid.PlatformStand = false
+	self.Humanoid.AutoRotate = true
+	self.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+
+	self['UpdateHumanoid'](self)
+end
+
 function Character:ReturnHasCD(Name)
 	return self.Cooldowns[Name] ~= nil
 end
 
 function Character:ReturnCanAttack()
 	return self.Stun.IsStunned == false and
-		self.Ragdoll.IsRagdolled == false and
+		self.Unconscious == false and
 		self.Block.IsBlocking == false
 end
 
@@ -520,8 +871,6 @@ function Character:LoadAnimation(anim, animOrHum)
 	local track = animator:LoadAnimation(anim)
 	return track
 end
-
-
 
 function Character:Activate()
 	self['Setup'](self)
