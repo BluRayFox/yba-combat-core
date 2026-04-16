@@ -1,5 +1,6 @@
 local RS = game.ReplicatedStorage
 local RSMods = RS.Assets.Modules
+local ClientFX = game.ReplicatedStorage.Remotes.ClientFX
 
 local DefaultCombatLib = require(script.DefaultCombat) -- M1 and M2 Attacks
 local Channel = require(RSMods.Channel)
@@ -46,16 +47,23 @@ function Character:_disconnectAll()
 	self.Connections = {}
 end
 
-function Character:_addTag(tagsTable, tagName, value, timer, onEnd)
-	self:_removeTag(tagsTable, tagName)
+function Character:_addTag(tagsTable, tagName, value, timer, onEnd, behaviour)
+	behaviour = behaviour or 'Cancel' -- 'Return'
+
+	local existingTag = tagsTable[tagName]
+
+	-- Если тег уже есть
+	if existingTag then
+		if behaviour == 'Return' then
+			return
+		elseif behaviour == 'Cancel' then
+			self:_removeTag(tagsTable, tagName)
+		end
+	end
 
 	local tag = {
-		Value = value
+		Value = value ~= nil and value or true
 	}
-
-	if value == nil then
-		tag.Value = true
-	end
 
 	if timer then
 		tag.Thread = task.delay(timer, function()
@@ -119,8 +127,6 @@ function Character:Setup()
 		
 		LimbThreads = {}		-- Timers for limb reset 
 	}
-	
-	self.ActiveChannels = {}
 	
 	self.Char = self.Player and self.Player.Character or self.Mob:Clone()
 	self.Humanoid = self.Char.Humanoid
@@ -238,6 +244,20 @@ function Character:UpdateHumanoid()
 	
 	self.Humanoid.WalkSpeed = WS
 	self.Humanoid.JumpPower = JP
+	
+	if self.Stun.IsStunned then
+		local StunnedBB = self.Char.Head:FindFirstChild('StunnedBB')
+		if not StunnedBB then
+			StunnedBB = game.ReplicatedStorage.Assets.Objects.StunnedBB:Clone()
+			StunnedBB.Parent = self.Char.Head
+		end
+		
+	else
+		local StunnedBB = self.Char.Head:FindFirstChild('StunnedBB')
+		if StunnedBB then
+			StunnedBB:Destroy()
+		end
+	end
 end
 
 function Character:InputBegan(Data)
@@ -363,6 +383,42 @@ function Character:StopBlocking()
 	self['UpdateHumanoid'](self)
 end
 
+function Character:DamageBlock(Dmg)
+	if not self.Block.IsBlocking then return end
+	self.Block.Capacity -= Dmg
+	
+	if self.Block.Capacity <= 0 then
+		self.Block.Capacity = 0
+		self['BlockBreak'](self)
+		return
+	end
+	
+	ClientFX:FireAllClients('BlockHit', {Origin = self.Root})
+end
+
+function Character:BlockBreak()
+	if not self.Block.IsBlocking then return end
+	self['StopBlocking'](self)
+	ClientFX:FireAllClients('BlockBreak', {Origin = self.Root})
+	
+	self['AddStun'](self, {Name = 'BlockBreakStun', Timer = 1.5})
+end
+
+function Character:PerfectBlock(data)
+	local Attacker = data.Attacker
+	local Victim = data.Victim
+	
+	if self.Char == Attacker then
+		self['AddStun'](self, {Name = 'PerfectBlockStun', Timer = 1.5})
+	end
+	
+	ClientFX:FireAllClients('BlockBreak', {Attacker = Attacker, Victim = Victim})
+end
+
+function Character:ReturnBlock()
+	return self.Block
+end
+
 function Character:AddWalkSpeed(Data)
 	self:_addTag(self.WalkSpeed.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end)
 	self['UpdateHumanoid'](self)
@@ -394,7 +450,7 @@ function Character:RemoveUsingMove(Data)
 end
 
 function Character:AddStun(Data)
-	self:_addTag(self.Stun.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end)
+	self:_addTag(self.Stun.Tags, Data.Name, Data.Value, Data.Timer, function() self['UpdateHumanoid'](self) end, 'Return')
 	self['UpdateHumanoid'](self)
 end
 
@@ -464,6 +520,8 @@ function Character:LoadAnimation(anim, animOrHum)
 	local track = animator:LoadAnimation(anim)
 	return track
 end
+
+
 
 function Character:Activate()
 	self['Setup'](self)
