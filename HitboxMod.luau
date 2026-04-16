@@ -25,7 +25,7 @@ function Hitbox:Cast(IgnoreCharacters)
 	local Parts = workspace:GetPartBoundsInBox(self.Origin.CFrame * self.Offset, self.Size, Overlap)
 	
 	for _, part in pairs(Parts) do
-		if part.Parent:FindFirstChild('Humanoid') and not table.find(Characters, part.Parent) and not table.find(IgnoreCharacters, part.Parent) and not table.find(self.VList, part.Parent) then
+		if part.Parent:FindFirstChild('Humanoid') and not table.find(Characters, part.Parent) and not table.find(IgnoreCharacters, part.Parent) and not table.find(self.VList, part.Parent) and part.Name == 'HumanoidRootPart' or part.Name =='HurtBox' then
 			table.insert(Characters, part.Parent)
 			table.insert(self.VList, part.Parent)
 		end		
